@@ -12,11 +12,22 @@ URL_HOJA = "https://docs.google.com/spreadsheets/d/1JuRSbWL5BmRKfHMhr-EKGOBbnIzL
 # Establecer conexión con Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+
 # Función para leer datos
 def leer_inventario():
-    return conn.read(spreadsheet=URL_HOJA, usecols=[0, 1, 2])
+    # 1. Leemos la hoja normalmente
+    datos = conn.read(spreadsheet=URL_HOJA, usecols=[0, 1, 2])
+    
+    # 2. ESTA ES LA LÍNEA QUE DEBES AGREGAR:
+    # Elimina los espacios antes o después de los nombres de las columnas
+    datos.columns = datos.columns.str.strip()
+    
+    return datos
 
 df_inventario = leer_inventario()
+
+
+
 
 
 # --- ALERTAS DE STOCK (VERSIÓN SEGURA) ---
