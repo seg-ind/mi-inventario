@@ -75,6 +75,26 @@ with st.form("gestion_inventario"):
             st.success("¡Datos sincronizados con Google Sheets!")
             st.rerun()
 
-# --- TABLA GENERAL ---
-st.subheader("Vista General del Inventario")
-st.dataframe(df_inventario, use_container_width=True)
+
+# --- VISTA GENERAL Y BUSCADOR ---
+st.divider()
+st.subheader("🔍 Buscar en el Inventario")
+
+# Creamos el campo de búsqueda
+busqueda = st.text_input("Escribe el nombre del producto para filtrar:")
+
+# Aplicamos el filtro si hay algo escrito
+if busqueda:
+    # Filtramos: el nombre del producto debe contener el texto buscado
+    # .str.contains hace la magia, y case=False ignora mayúsculas
+    df_filtrado = df_inventario[df_inventario["Producto"].str.contains(busqueda, case=False, na=False)]
+else:
+    # Si no hay nada escrito, mostramos todo
+    df_filtrado = df_inventario
+
+# Mostramos la tabla (filtrada o completa)
+st.dataframe(df_filtrado, use_container_width=True)
+
+# Información extra: cantidad de resultados
+if busqueda:
+    st.caption(f"Se encontraron {len(df_filtrado)} coincidencias.")
