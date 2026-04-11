@@ -2,39 +2,31 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-# Configuración de la página
+# 1. Configuración y Conexión
 st.set_page_config(page_title="Inventario Nube", page_icon="☁️")
 st.title("☁️ Inventario en la Nube (Google Sheets)")
 
-# URL de tu Google Sheet
-URL_HOJA = "https://docs.google.com/spreadsheets/d/1JuRSbWL5BmRKfHMhr-EKGOBbnIzL1uqhXISkT7rIrvs/edit?usp=sharing"
-
-# Conexión
+URL_HOJA = "https://docs.google.com/spreadsheets/d/TU_ID_DE_HOJA_AQUI/edit#gid=0"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# 2. Función de lectura (Limpia espacios y errores de texto)
 def leer_inventario():
     try:
-        # Leemos las primeras 3 columnas
         datos = conn.read(spreadsheet=URL_HOJA, usecols=[0, 1, 2])
-        # Limpiamos espacios en los nombres de columnas
-        datos.columns = datos.columns.str.strip()
-        # Aseguramos que la columna Producto sea tratada como texto siempre
+        datos.columns = datos.columns.str.strip() # Quita espacios como "Cantidad "
         if "Producto" in datos.columns:
-            datos["Producto"] = datos["Producto"].astype(str)
+            datos["Producto"] = datos["Producto"].astype(str).str.strip()
         return datos
     except Exception as e:
-        st.error(f"Error al leer la hoja: {e}")
         return pd.DataFrame(columns=["Producto", "Cantidad", "Precio"])
 
 df_inventario = leer_inventario()
 
-# --- ALERTAS DE STOCK ---
+# 3. Alertas de Stock Bajo
 st.subheader("⚠️ Alertas de Reposición")
 if "Cantidad" in df_inventario.columns:
-    # Convertimos a número para comparar
     df_inventario["Cantidad"] = pd.to_numeric(df_inventario["Cantidad"], errors='coerce').fillna(0)
     stock_bajo = df_inventario[df_inventario["Cantidad"] <= 5]
-    
     if not stock_bajo.empty:
         for _, fila in stock_bajo.iterrows():
             st.warning(f"Poco stock: **{fila['Producto']}** ({int(fila['Cantidad'])} unidades)")
@@ -43,55 +35,40 @@ if "Cantidad" in df_inventario.columns:
 
 st.divider()
 
-# --- FORMULARIO DE CARGA ---
-
-with st.form("gestion"):
+# 4. FORMULARIO DE GESTIÓN (Todo el bloque dentro del 'with')
+with st.form("mi_formulario"):
     st.subheader("Cargar o Actualizar Producto")
-    nombre = st.text_input("Nombre del Producto")
-    cantidad = st.number_input("Cantidad", min_value=0)
-    precio = st.number_input("Precio", min_value=0.0)
-   
-if st.form_submit_button("Guardar Cambios"):
-        if nombre:
-            # 1. Normalizamos el nombre para evitar errores (sin espacios y en mayúsculas)
-            nombre_limpio = nombre.strip()
+    nombre_input = st.text_input("Nombre del Producto")
+    cantidad_input = st.number_input("Cantidad", min_value=0, step=1)
+    precio_input = st.number_input("Precio", min_value=0.0)
+    
+    # El botón DEBE estar dentro del 'with'
+    boton_guardar = st.form_submit_button("Guardar Cambios")
+
+    if boton_guardar:
+        if nombre_input:
+            nombre_l = nombre_input.strip()
+            # Quitamos el viejo si existe (para actualizar)
+            df_sin_actual = df_inventario[df_inventario["Producto"].str.upper() != nombre_l.upper()].copy()
+            # Creamos la nueva fila
+            nueva_fila = pd.DataFrame({"Producto": [nombre_l], "Cantidad": [cantidad_input], "Precio": [precio_input]})
+            # Unimos
+            df_final = pd.concat([df_sin_actual, nueva_fila], ignore_index=True)
             
-            # 2. Verificamos si el producto ya existe en nuestro inventario actual
-            # Usamos .values para buscar de forma más eficiente
-            existe = nombre_limpio.upper() in df_inventario["Producto"].str.upper().values
-
-            if existe:
-                # OPCIÓN A: Actualizar el producto existente (pisar cantidad y precio)
-                # Filtramos todos los que NO son este producto
-                df_final = df_inventario[df_inventario["Producto"].str.upper() != nombre_limpio.upper()].copy()
-                # Creamos la fila nueva
-                nueva_fila = pd.DataFrame({"Producto": [nombre_limpio], "Cantidad": [cantidad], "Precio": [precio]})
-                # Unimos todo
-                df_final = pd.concat([df_final, nueva_fila], ignore_index=True)
-                mensaje = f"✅ Producto '{nombre_limpio}' actualizado correctamente."
-            else:
-                # OPCIÓN B: Es un producto totalmente nuevo, simplemente lo pegamos al final
-                nueva_fila = pd.DataFrame({"Producto": [nombre_limpio], "Cantidad": [cantidad], "Precio": [precio]})
-                df_final = pd.concat([df_inventario, nueva_fila], ignore_index=True)
-                mensaje = f"✨ Producto '{nombre_limpio}' agregado como nuevo."
-
-            # 3. Subimos TODO el paquete de nuevo a Google Sheets
+            # Subimos a Google
             conn.update(spreadsheet=URL_HOJA, data=df_final)
-            st.success(mensaje)
-            
-            # Forzamos recarga para que el buscador y la tabla se actualicen
+            st.success(f"Sincronizado: {nombre_l}")
             st.rerun()
         else:
-            st.error("⚠️ Por favor, ingresá un nombre de producto.")
+            st.error("Falta el nombre del producto.")
 
 st.divider()
 
-# --- BUSCADOR Y TABLA ---
+# 5. Buscador y Tabla
 st.subheader("🔍 Buscador de Inventario")
-busqueda = st.text_input("Buscar producto por nombre:")
+busqueda = st.text_input("Escribe para filtrar:")
 
 if busqueda:
-    # Filtro seguro: convertimos a minúsculas para comparar
     df_filtrado = df_inventario[df_inventario["Producto"].str.contains(busqueda, case=False, na=False)]
 else:
     df_filtrado = df_inventario
