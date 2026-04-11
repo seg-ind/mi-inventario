@@ -18,14 +18,31 @@ def leer_inventario():
 
 df_inventario = leer_inventario()
 
-# --- ALERTAS DE STOCK ---
+
+# --- ALERTAS DE STOCK (VERSIÓN SEGURA) ---
 st.subheader("⚠️ Alertas de Reposición")
-stock_bajo = df_inventario[df_inventario["Cantidad"] <= 5]
-if not stock_bajo.empty:
-    for _, fila in stock_bajo.iterrows():
-        st.warning(f"Quedan pocas unidades de: **{fila['Producto']}** ({fila['Cantidad']})")
+
+# 1. Verificamos si la columna existe en la tabla que viene de Google
+columnas_reales = df_inventario.columns.tolist()
+
+if "Cantidad" in columnas_reales:
+    # 2. Forzamos a que los datos sean números (por si hay un texto accidental)
+    df_inventario["Cantidad"] = pd.to_numeric(df_inventario["Cantidad"], errors='coerce').fillna(0)
+    
+    # 3. Recién ahora hacemos la comparación
+    stock_bajo = df_inventario[df_inventario["Cantidad"] <= 5]
+    
+    if not stock_bajo.empty:
+        for _, fila in stock_bajo.iterrows():
+            st.warning(f"Poco stock: **{fila['Producto']}** ({int(fila['Cantidad'])} unidades)")
+    else:
+        st.success("✅ Stock suficiente en todos los productos.")
 else:
-    st.success("Stock en niveles óptimos.")
+    # 4. Si no la encuentra, te mostramos qué columnas sí está viendo Python
+    st.error(f"No encuentro la columna 'Cantidad'.")
+    st.write("Las columnas que detecto en tu Excel son:", columnas_reales)
+
+
 
 # --- FORMULARIO PARA AGREGAR ---
 with st.form("gestion_inventario"):
