@@ -1,70 +1,52 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import os
 
-# Configuración y constantes
-ARCHIVO_DATOS = "inventario.csv"
-LIMITE_STOCK_BAJO = 5  # Puedes cambiar este número según tu necesidad
+# Configuración de la página
+st.set_page_config(page_title="Inventario Nube", page_icon="☁️")
+st.title("☁️ Inventario en la Nube (Google Sheets)")
 
-def cargar_datos():
-    if os.path.exists(ARCHIVO_DATOS):
-        return pd.read_csv(ARCHIVO_DATOS)
-    else:
-        return pd.DataFrame(columns=["Producto", "Cantidad", "Precio"])
+# URL de tu Google Sheet (debes reemplazar esta por la tuya)
+URL_HOJA = "https://docs.google.com/spreadsheets/d/1JuRSbWL5BmRKfHMhr-EKGOBbnIzL1uqhXISkT7rIrvs/edit?usp=sharing"
 
-def guardar_datos(df):
-    df.to_csv(ARCHIVO_DATOS, index=False)
+# Establecer conexión con Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- Interfaz de la Aplicación ---
-st.set_page_config(page_title="Control de Inventario", page_icon="📦")
-st.title("📦 Control de Inventario")
+# Función para leer datos
+def leer_inventario():
+    return conn.read(spreadsheet=URL_HOJA, usecols=[0, 1, 2])
 
-df_inventario = cargar_datos()
+df_inventario = leer_inventario()
 
-# --- SECCIÓN DE ALERTAS ---
+# --- ALERTAS DE STOCK ---
 st.subheader("⚠️ Alertas de Reposición")
-# Filtramos productos que tengan 5 o menos unidades
-stock_bajo = df_inventario[df_inventario["Cantidad"] <= LIMITE_STOCK_BAJO]
-
+stock_bajo = df_inventario[df_inventario["Cantidad"] <= 5]
 if not stock_bajo.empty:
-    for index, fila in stock_bajo.iterrows():
-        st.warning(f"¡Atención! El producto **{fila['Producto']}** tiene solo **{fila['Cantidad']}** unidades.")
+    for _, fila in stock_bajo.iterrows():
+        st.warning(f"Quedan pocas unidades de: **{fila['Producto']}** ({fila['Cantidad']})")
 else:
-    st.success("✅ Todos los productos tienen stock suficiente.")
+    st.success("Stock en niveles óptimos.")
 
-st.divider()
+# --- FORMULARIO PARA AGREGAR ---
+with st.form("gestion_inventario"):
+    st.subheader("Cargar o Actualizar Producto")
+    nombre = st.text_input("Nombre del Producto")
+    cantidad = st.number_input("Cantidad", min_value=0)
+    precio = st.number_input("Precio", min_value=0.0)
+    boton = st.form_submit_button("Guardar Cambios")
 
-# --- SECCIÓN PARA AGREGAR O ACTUALIZAR ---
-st.subheader("Gestionar Productos")
-with st.form("nuevo_producto"):
-    nombre = st.text_input("Nombre del producto")
-    cantidad = st.number_input("Cantidad actual", min_value=0, step=1)
-    precio = st.number_input("Precio por unidad", min_value=0.0, format="%.2f")
-    boton_agregar = st.form_submit_button("Actualizar Inventario")
-
-    if boton_agregar:
+    if boton:
         if nombre:
-            # Si el producto ya existe, lo actualizamos; si no, lo añadimos
-            if nombre in df_inventario["Producto"].values:
-                df_inventario.loc[df_inventario["Producto"] == nombre, ["Cantidad", "Precio"]] = [cantidad, precio]
-                mensaje = f"Producto '{nombre}' actualizado."
-            else:
-                nueva_fila = pd.DataFrame({"Producto": [nombre], "Cantidad": [cantidad], "Precio": [precio]})
-                df_inventario = pd.concat([df_inventario, nueva_fila], ignore_index=True)
-                mensaje = f"Producto '{nombre}' agregado."
+            # Si el producto ya existe, lo eliminamos de la lista vieja para poner el nuevo
+            df_actualizado = df_inventario[df_inventario["Producto"] != nombre]
+            nueva_fila = pd.DataFrame({"Producto": [nombre], "Cantidad": [cantidad], "Precio": [precio]})
+            df_final = pd.concat([df_actualizado, nueva_fila], ignore_index=True)
             
-            guardar_datos(df_inventario)
-            st.success(mensaje)
+            # Guardar en Google Sheets
+            conn.update(spreadsheet=URL_HOJA, data=df_final)
+            st.success("¡Datos sincronizados con Google Sheets!")
             st.rerun()
-        else:
-            st.error("El nombre del producto es obligatorio.")
 
-# --- VISTA GENERAL ---
-st.subheader("Listado Completo")
+# --- TABLA GENERAL ---
+st.subheader("Vista General del Inventario")
 st.dataframe(df_inventario, use_container_width=True)
-
-if st.button("Vaciar Inventario"):
-    if st.checkbox("Confirmar eliminación de todos los datos"):
-        df_inventario = pd.DataFrame(columns=["Producto", "Cantidad", "Precio"])
-        guardar_datos(df_inventario)
-        st.rerun()
