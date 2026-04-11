@@ -44,20 +44,45 @@ if "Cantidad" in df_inventario.columns:
 st.divider()
 
 # --- FORMULARIO DE CARGA ---
+
 with st.form("gestion"):
     st.subheader("Cargar o Actualizar Producto")
     nombre = st.text_input("Nombre del Producto")
     cantidad = st.number_input("Cantidad", min_value=0)
     precio = st.number_input("Precio", min_value=0.0)
-    if st.form_submit_button("Guardar Cambios"):
+   
+if st.form_submit_button("Guardar Cambios"):
         if nombre:
-            # Filtramos para no duplicar
-            df_actualizado = df_inventario[df_inventario["Producto"].str.upper() != nombre.upper()]
-            nueva_fila = pd.DataFrame({"Producto": [nombre], "Cantidad": [cantidad], "Precio": [precio]})
-            df_final = pd.concat([df_actualizado, nueva_fila], ignore_index=True)
+            # 1. Normalizamos el nombre para evitar errores (sin espacios y en mayúsculas)
+            nombre_limpio = nombre.strip()
+            
+            # 2. Verificamos si el producto ya existe en nuestro inventario actual
+            # Usamos .values para buscar de forma más eficiente
+            existe = nombre_limpio.upper() in df_inventario["Producto"].str.upper().values
+
+            if existe:
+                # OPCIÓN A: Actualizar el producto existente (pisar cantidad y precio)
+                # Filtramos todos los que NO son este producto
+                df_final = df_inventario[df_inventario["Producto"].str.upper() != nombre_limpio.upper()].copy()
+                # Creamos la fila nueva
+                nueva_fila = pd.DataFrame({"Producto": [nombre_limpio], "Cantidad": [cantidad], "Precio": [precio]})
+                # Unimos todo
+                df_final = pd.concat([df_final, nueva_fila], ignore_index=True)
+                mensaje = f"✅ Producto '{nombre_limpio}' actualizado correctamente."
+            else:
+                # OPCIÓN B: Es un producto totalmente nuevo, simplemente lo pegamos al final
+                nueva_fila = pd.DataFrame({"Producto": [nombre_limpio], "Cantidad": [cantidad], "Precio": [precio]})
+                df_final = pd.concat([df_inventario, nueva_fila], ignore_index=True)
+                mensaje = f"✨ Producto '{nombre_limpio}' agregado como nuevo."
+
+            # 3. Subimos TODO el paquete de nuevo a Google Sheets
             conn.update(spreadsheet=URL_HOJA, data=df_final)
-            st.success("¡Sincronizado!")
+            st.success(mensaje)
+            
+            # Forzamos recarga para que el buscador y la tabla se actualicen
             st.rerun()
+        else:
+            st.error("⚠️ Por favor, ingresá un nombre de producto.")
 
 st.divider()
 
