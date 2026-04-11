@@ -6,7 +6,7 @@ import pandas as pd
 st.set_page_config(page_title="Inventario Nube", page_icon="☁️")
 st.title("☁️ Inventario en la Nube (Google Sheets)")
 
-URL_HOJA = "https://docs.google.com/spreadsheets/d/TU_ID_DE_HOJA_AQUI/edit#gid=0"
+URL_HOJA = "https://docs.google.com/spreadsheets/d/1JuRSbWL5BmRKfHMhr-EKGOBbnIzL1uqhXISkT7rIrvs/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # 2. Función de lectura (Limpia espacios y errores de texto)
