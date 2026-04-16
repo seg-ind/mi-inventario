@@ -27,7 +27,7 @@ st.markdown("""
 
 # 2. LOGO Y TÍTULO
 # Reemplaza esta URL por el link de tu logo corporativo
-LOGO_URL = "https://drive.google.com/file/d/1wewAs21BWOXQ_M5RARdaTQkB3ODbfg8M/view?usp=sharing" 
+LOGO_URL = "https://drive.google.com/file/d/1wewAs21BWOXQ_M5RARdaTQkB3ODbfg8M/view" 
 
 col_logo, col_titulo = st.columns([1, 3])
 with col_logo:
