@@ -25,7 +25,7 @@ with col_r:
     st.title("Gestión Comercial")
 
 # 3. CONEXIÓN Y CARGA (Con blindaje de errores)
-URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit" # <-- VERIFICÁ QUE ESTÉ TU LINK
+URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit?usp=sharing" # <-- VERIFICÁ QUE ESTÉ TU LINK
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def cargar_base_clientes():
