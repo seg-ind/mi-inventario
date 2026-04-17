@@ -56,24 +56,43 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit"
 
 @st.cache_data(ttl=60) # Cache para que no recargue de Google cada segundo
+
+
+
+
 def cargar_base_clientes():
     try:
-        # Leemos la hoja (Asegurate que la pestaña se llame Clientes o sea la primera)
         df = conn.read(spreadsheet=URL_HOJA)
+        # 1. Limpiamos espacios y estandarizamos a mayúsculas para comparar
         df.columns = df.columns.str.strip()
         
-        # Combinamos Cliente y Ubicación para el buscador
+        # 2. Buscamos las columnas sin importar tildes o mayúsculas
+        # Creamos un diccionario para renombrar dinámicamente
+        nuevos_nombres = {}
+        for col in df.columns:
+            col_normalizada = col.upper().replace('Ó', 'O').replace('Á', 'A')
+            if col_normalizada == 'CLIENTE': nuevos_nombres[col] = 'Cliente'
+            if col_normalizada == 'UBICACION': nuevos_nombres[col] = 'Ubicacion'
+            if col_normalizada == 'ID': nuevos_nombres[col] = 'ID'
+        
+        df = df.rename(columns=nuevos_nombres)
+        
+        # 3. Verificamos si logramos identificar las columnas necesarias
         if 'Cliente' in df.columns and 'Ubicacion' in df.columns:
             df['IDENTIFICACION'] = df['Cliente'].astype(str) + " - " + df['Ubicacion'].astype(str)
         else:
-            st.error("Revisá las columnas de tu Excel: debe tener 'Cliente' y 'Ubicacion'")
+            st.error(f"❌ Error de nombres. Tu Excel tiene: {df.columns.tolist()}")
+            st.info("Asegúrate de que las columnas se llamen exactamente: ID, Cliente, Ubicacion")
             
         return df
     except Exception as e:
-        st.error(f"Error al conectar con la base de datos: {e}")
-        return pd.DataFrame(columns=['ID', 'Cliente', 'Ubicacion', 'IDENTIFICACION'])
+        st.error(f"Fallo al conectar: {e}")
+        return pd.DataFrame()
 
-df_clientes = cargar_base_clientes()
+
+
+
+
 
 # 4. BUSCADORES (Pantalla de Inicio)
 st.markdown("---")
