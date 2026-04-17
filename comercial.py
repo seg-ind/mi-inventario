@@ -37,7 +37,7 @@ with col_titulo:
 
 # 3. CONEXIÓN A DATOS (Google Sheets)
 conn = st.connection("gsheets", type=GSheetsConnection)
-URL_HOJA = "https://docs.google.com/spreadsheets/d/17b9ytR5MK_CDuBvCby4ZXUlUe5PaYuuuelo0tEyGeEs/edit"
+URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit"
 
 @st.cache_data(ttl=60) # Cache para que no recargue de Google cada segundo
 def cargar_base_clientes():
