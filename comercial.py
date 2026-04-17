@@ -2,107 +2,37 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILO PROFESIONAL
-st.set_page_config(page_title="Gestión Comercial", layout="wide", page_icon="📈")
+# 1. ESTILO Y CONFIGURACIÓN
+st.set_page_config(page_title="Gestión Comercial", layout="wide")
 
-# Aplicamos los tonos azul oscuro y gris claro vía CSS
-st.markdown("""
-    <style>
-    .main { background-color: #f8f9fa; } /* Gris muy claro de fondo */
-    .stButton>button { 
-        background-color: #002b5e; 
-        color: white; 
-        border-radius: 4px; 
-        border: none;
-        width: 100%;
-    }
-    .stButton>button:hover {
-        background-color: #004080;
-        color: #e0e0e0;
-    }
-    h1, h2, h3 { color: #002b5e; }
-    </style>
-    """, unsafe_allow_html=True)
+# 2. LOGO (Cambiamos a una imagen fija de prueba)
+LOGO_URL = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png" # Ícono de empresa genérico
+st.image(LOGO_URL, width=100)
+st.title("Gestión Comercial")
 
+# 3. VERIFICACIÓN DE SEGURIDAD (Esto te dirá el problema real)
+if "connections" not in st.secrets:
+    st.error("🚨 ERROR CRÍTICO: No se encontraron las credenciales en 'Secrets'.")
+    st.info("Andá a Settings > Secrets en Streamlit Cloud y pegá el código [connections.gsheets]")
+    st.stop() # Detiene la app aquí para no seguir con errores
 
-# 2. LOGO Y TÍTULO
-# Reemplaza esta URL por el link de tu logo corporativo
-LOGO_URL = "https://github.com/seg-ind/mi-inventario/blob/main/LOGO.png" 
-
-col_logo, col_titulo = st.columns([1, 3])
-with col_logo:
-    st.image(LOGO_URL)
-with col_titulo:
-    st.title("GESTION COMERCIAL")
-
-# 3. CONEXIÓN A DATOS (Google Sheets)
+# 4. CONEXIÓN
 conn = st.connection("gsheets", type=GSheetsConnection)
-URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit"
+URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit" # ASEGURATE DE QUE ESTA URL SEA LA CORRECTA
 
-@st.cache_data(ttl=60) # Cache para que no recargue de Google cada segundo
-def cargar_base_clientes():
-    try:
-        # Leemos la hoja (Asegurate que la pestaña se llame Clientes o sea la primera)
-        df = conn.read(spreadsheet=URL_HOJA)
-        df.columns = df.columns.str.strip()
-        
-        # Combinamos Cliente y Ubicación para el buscador
-        if 'Cliente' in df.columns and 'Ubicacion' in df.columns:
-            df['IDENTIFICACION'] = df['Cliente'].astype(str) + " - " + df['Ubicacion'].astype(str)
-        else:
-            st.error("Revisá las columnas de tu Excel: debe tener 'Cliente' y 'Ubicacion'")
-            
-        return df
-    except Exception as e:
-        st.error(f"Error al conectar con la base de datos: {e}")
-        return pd.DataFrame(columns=['ID', 'Cliente', 'Ubicacion', 'IDENTIFICACION'])
+try:
+    # Leemos la hoja
+    df_clientes = conn.read(spreadsheet=URL_HOJA)
+    df_clientes.columns = df_clientes.columns.str.strip()
+    st.success("✅ Conexión exitosa con Google Sheets")
+    
+    # Buscador simple para probar
+    busqueda = st.text_input("Buscar Cliente:")
+    if busqueda:
+        resultado = df_clientes[df_clientes['Cliente'].str.contains(busqueda, case=False, na=False)]
+        st.dataframe(resultado)
+    else:
+        st.dataframe(df_clientes)
 
-df_clientes = cargar_base_clientes()
-
-# 4. BUSCADORES (Pantalla de Inicio)
-st.markdown("---")
-st.subheader("🔍 Buscador de Clientes")
-c_id, c_ident = st.columns(2)
-
-with c_id:
-    busqueda_id = st.text_input("Código del Cliente (ID):")
-with c_ident:
-    busqueda_txt = st.text_input("Identificación (Nombre o Ubicación):")
-
-# 5. FILTRADO DINÁMICO
-df_filtrado = df_clientes.copy()
-
-if busqueda_id:
-    df_filtrado = df_filtrado[df_filtrado['ID'].astype(str).str.contains(busqueda_id, case=False, na=False)]
-
-if busqueda_txt:
-    df_filtrado = df_filtrado[df_filtrado['IDENTIFICACION'].str.contains(busqueda_txt, case=False, na=False)]
-
-# 6. TABLA DE RESULTADOS CON BOTONES
-st.write("### Resultados")
-
-# Encabezados
-h_id, h_ident, h_btns = st.columns([1, 4, 5])
-h_id.write("**ID**")
-h_ident.write("**IDENTIFICACIÓN (CLIENTE - UBICACIÓN)**")
-h_btns.write("**ACCIONES**")
-
-if not df_filtrado.empty:
-    for i, fila in df_filtrado.iterrows():
-        r_id, r_ident, r_btns = st.columns([1, 4, 5])
-        
-        r_id.write(fila['ID'])
-        r_ident.write(fila['IDENTIFICACION'])
-        
-        # Generación de los 6 botones por cada fila
-        with r_btns:
-            b1, b2, b3, b4, b5, b6 = st.columns(6)
-            # Definiremos la funcionalidad de estos botones en las siguientes etapas
-            b1.button("📄", key=f"pres_{i}", help="Presupuestos")
-            b2.button("🛠️", key=f"ot_{i}", help="Orden de Trabajo")
-            b3.button("🚚", key=f"seg_{i}", help="Seguimiento")
-            b4.button("💰", key=f"cob_{i}", help="Facturación/Cobranzas")
-            b5.button("📊", key=f"rep_{i}", help="Reportes")
-            b6.button("✉️", key=f"mail_{i}", help="Enviar Mail")
-else:
-    st.info("No hay coincidencias para mostrar.")
+except Exception as e:
+    st.error(f"Fallo al leer los datos: {e}")
