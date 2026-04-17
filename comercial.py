@@ -14,15 +14,20 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. MANEJO DEL LOGO (Local)
-ruta_logo = os.path.join(os.path.dirname(__file__), 'LOGO.jpg')
-col_l, col_r = st.columns([1, 4])
-with col_l:
-    if os.path.exists(ruta_logo):
-        st.image(ruta_logo, width=150)
-    else:
-        st.info("Logo no detectado")
-with col_r:
-    st.title("Gestión Comercial")
+
+# Busca el logo probando diferentes extensiones y mayúsculas
+posibles_logos = ['LOGO.jpg', 'logo.jpg', 'LOGO.JPG', 'logo.png']
+ruta_logo = None
+
+for nombre in posibles_logos:
+    intentar_ruta = os.path.join(os.path.dirname(__file__), nombre)
+    if os.path.exists(intentar_ruta):
+        ruta_logo = intentar_ruta
+        break
+
+
+
+
 
 # 3. CONEXIÓN Y CARGA (Con blindaje de errores)
 URL_HOJA = "https://docs.google.com/spreadsheets/d/16yNdj9OJZuTlnKya1wbtTRV_Px7NNjNR0qEr7ePPax4/edit?usp=sharing" # <-- VERIFICÁ QUE ESTÉ TU LINK
